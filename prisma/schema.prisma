@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SMTP + sender configuration (single-row settings table)
+model Settings {
+  id              String   @id @default("singleton")
+  smtpHost        String   @default("smtp.gmail.com")
+  smtpPort        Int      @default(587)
+  smtpUser        String   @default("")
+  smtpPass        String   @default("") // Gmail App Password
+  fromName        String   @default("Arkwave Innovations")
+  fromEmail       String   @default("")
+  replyTo         String   @default("")
+  dailyLimit      Int      @default(20)
+  appPassword     String   @default("changeme123") // single-password gate
+  signature       String   @default("\n\nBest regards,\nThe Arkwave Innovations Team\nhttps://arkwave.in")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Recipient / prospect
+model Recipient {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  company     String?
+  website     String?  // prospect's website URL — used for AI scraping
+  notes       String?  // free-form context (industry, pain point, etc.)
+  status      String   @default("pending") // pending | drafted | sent | failed
+  subject     String?  // AI-generated subject line
+  body        String?  // AI-generated email body
+  aiBrief     String?  // scraped site summary used for generation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  logs        EmailLog[]
+}
+
+// Outbox / sent log
+model EmailLog {
+  id           String   @id @default(cuid())
+  recipientId  String
+  recipient    Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  toEmail      String
+  toName       String
+  subject      String
+  body         String
+  status       String   @default("sent") // sent | failed
+  errorMessage String?
+  sentAt       DateTime @default(now())
+
+  @@index([sentAt])
+  @@index([recipientId])
+}
